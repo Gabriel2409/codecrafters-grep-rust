@@ -1,6 +1,28 @@
-use std::env;
-use std::io;
-use std::process;
+use clap::Parser;
+use clap_stdin::FileOrStdin;
+
+#[derive(Parser)]
+#[command(
+    version,
+    about = "Custom grep",
+    long_about = "Search for patterns in a file"
+)]
+struct Cli {
+    #[arg(
+        short('E'),
+        long,
+        help = "Interpret patterns as extended regular expression",
+        // required = true
+    )]
+    extended_regexp: bool,
+    #[arg(help = "One or more patterns separated by newline characters")]
+    pattern: String,
+    #[arg(
+        help = "A file of - stands for standard input. In this version, there is no recursive search, so no files also means standard input",
+        default_value = "-"
+    )]
+    file: FileOrStdin<String>,
+}
 
 fn match_pattern(input_line: &str, pattern: &str) -> bool {
     if pattern.chars().count() == 1 {
@@ -10,25 +32,23 @@ fn match_pattern(input_line: &str, pattern: &str) -> bool {
     }
 }
 
-// Usage: echo <input_text> | your_grep.sh -E <pattern>
-fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    println!("Logs from your program will appear here!");
+fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
 
-    if env::args().nth(1).unwrap() != "-E" {
+    let content = cli.file.contents()?;
+
+    // By default, clap exits with status code 2 when we don't pass the required
+    // arguments. To exit with status code 1, we need to handle it manually.
+    if !cli.extended_regexp {
         println!("Expected first argument to be '-E'");
-        process::exit(1);
+        std::process::exit(1);
     }
 
-    let pattern = env::args().nth(2).unwrap();
-    let mut input_line = String::new();
+    let pattern = cli.pattern;
 
-    io::stdin().read_line(&mut input_line).unwrap();
-
-    // Uncomment this block to pass the first stage
-    // if match_pattern(&input_line, &pattern) {
-    //     process::exit(0)
-    // } else {
-    //     process::exit(1)
-    // }
+    if match_pattern(&content, &pattern) {
+        Ok(())
+    } else {
+        anyhow::bail!("Error matching pattern")
+    }
 }
