@@ -25,10 +25,20 @@ struct Cli {
 }
 
 fn match_pattern(input_line: &str, pattern: &str) -> bool {
-    if pattern.chars().count() == 1 {
-        return input_line.contains(pattern);
-    } else {
-        panic!("Unhandled pattern: {}", pattern)
+    match pattern {
+        x if x.chars().count() == 1 => input_line.contains(pattern),
+        "\\d" => {
+            let mut is_matched = false;
+            for char in input_line.chars() {
+                if char.is_ascii_digit() {
+                    is_matched = true;
+                    break;
+                }
+            }
+            is_matched
+        }
+
+        _ => todo!("Unhandled pattern: {}", pattern),
     }
 }
 
