@@ -37,6 +37,16 @@ fn match_pattern(input_line: &str, pattern: &str) -> bool {
             }
             is_matched
         }
+        "\\w" => {
+            let mut is_matched = false;
+            for char in input_line.chars() {
+                if char == '_' || char.is_ascii_alphanumeric() {
+                    is_matched = true;
+                    break;
+                }
+            }
+            is_matched
+        }
 
         _ => todo!("Unhandled pattern: {}", pattern),
     }
