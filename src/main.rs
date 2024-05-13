@@ -1,5 +1,6 @@
 use clap::Parser;
 use clap_stdin::FileOrStdin;
+mod regex_lexer;
 
 #[derive(Parser)]
 #[command(
