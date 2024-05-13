@@ -31,6 +31,8 @@ pub enum RegexToken {
     StartAnchor,
     /// $
     EndAnchor,
+    /// .
+    Wildcard,
 }
 
 #[derive(Debug)]
@@ -145,6 +147,7 @@ impl RegexLexer {
                 ']' => RegexToken::RBracket,
                 '^' => RegexToken::StartAnchor,
                 '$' => RegexToken::EndAnchor,
+                '.' => RegexToken::Wildcard,
                 '*' => RegexToken::Quantifier { min: 0, max: None },
                 '+' => RegexToken::Quantifier { min: 1, max: None },
                 '?' => RegexToken::Quantifier {
@@ -193,7 +196,7 @@ mod tests {
     #[case("a{1}b", vec![RegexToken::Literal('a'), RegexToken::Quantifier { min: 1, max: Some(1) }, RegexToken::Literal('b')])]
     #[case("a{1,}b", vec![RegexToken::Literal('a'), RegexToken::Quantifier { min: 1, max: None }, RegexToken::Literal('b')])]
     #[case("a[bwz]b", vec![RegexToken::Literal('a'), RegexToken::LBracket , RegexToken::Literal('b'), RegexToken::Literal('w'), RegexToken::Literal('z'), RegexToken::RBracket, RegexToken::Literal('b')])]
-    #[case("^ab$", vec![RegexToken::StartAnchor,RegexToken::Literal('a'),  RegexToken::Literal('b'), RegexToken::EndAnchor])]
+    #[case("^a.b$", vec![RegexToken::StartAnchor,RegexToken::Literal('a'), RegexToken::Wildcard, RegexToken::Literal('b'), RegexToken::EndAnchor])]
     fn test_lexer(#[case] pat: &str, #[case] expected: Vec<RegexToken>) -> anyhow::Result<()> {
         let mut lexer = RegexLexer::new(pat);
 
