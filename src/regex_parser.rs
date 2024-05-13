@@ -24,8 +24,51 @@ enum Node {
     },
 }
 
-impl Node {
-    pub fn matches_string(&self, input: &str) {}
+struct Matcher {
+    pos: usize,
+}
+
+impl Matcher {
+    pub fn new() -> Self {
+        Matcher { pos: 0 }
+    }
+    pub fn matches(&mut self, node_to_match: &Node, chars: &[char]) -> bool {
+        match node_to_match {
+            Node::Literal(c) => {
+                let is_matching = *c == chars[self.pos];
+                self.pos += 1;
+                is_matching
+            }
+            Node::Digit => {
+                let c = chars[self.pos];
+                self.pos += 1;
+                c.is_ascii_digit()
+            }
+            Node::Alphanum => {
+                let c = chars[self.pos];
+                self.pos += 1;
+                c.is_ascii_alphanumeric() || c == '_'
+            }
+            // Node::Or { nodes } =>{
+            //     let mut matchers = Vec::new();
+            //     for node in nodes{
+            //
+            //
+            //     }
+            // }
+            Node::Group { nodes, group_ref } => {
+                let mut is_matching = true;
+                for (i, node) in nodes.iter().enumerate() {
+                    if !self.matches(node, chars) {
+                        is_matching = false;
+                        break;
+                    }
+                }
+                is_matching
+            }
+            _ => todo!(),
+        }
+    }
 }
 
 struct RegexParser {
@@ -160,17 +203,22 @@ mod tests {
 
     use super::*;
 
-    #[rstest]
-    // #[case("a|b|c|(de){4}")]
-    #[case("a[^bcd]")]
-    fn test_lexer(#[case] pat: &str) -> anyhow::Result<()> {
-        let mut lexer = RegexLexer::new(pat);
+    #[test]
+    fn test_parser() -> anyhow::Result<()> {
+        // let pat = String::from("(a(b))\\de\\wf");
+        // let chars = "ab5e_f".chars().collect::<Vec<_>>();
+
+        let pat = String::from("ab|cd");
+        let chars = "cd".chars().collect::<Vec<_>>();
+
+        let mut lexer = RegexLexer::new(&pat);
         let mut parser = RegexParser::new(lexer)?;
 
-        let n = parser.build_ast(0)?;
-        dbg!(n);
+        let node = parser.build_ast(0)?;
+        let mut matcher = Matcher::new();
+        let b = matcher.matches(&node, &chars);
+        assert!(b);
 
-        panic!("ENDING");
         Ok(())
     }
 }
