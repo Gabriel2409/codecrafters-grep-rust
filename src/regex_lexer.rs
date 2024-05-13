@@ -8,21 +8,29 @@ pub enum RegexToken {
     Digit,
     /// \w in pattern
     AlphaNum,
-    /// Quantifier, ?, * or {x} or {x,y}
+    /// Quantifier, ?, * or {x} or {x,y} or {x,}
     Quantifier {
         min: u8,
         max: Option<u8>, // None for infinity
     },
     /// (
-    LBracket,
+    LParen,
     /// )
+    RParen,
+    /// [
+    LBracket,
+    /// ]
     RBracket,
     /// |
     Pipe,
     /// End of input
     Eof,
-    /// \1
+    /// \15
     BackRef(u8),
+    /// ^
+    StartAnchor,
+    /// $
+    EndAnchor,
 }
 
 #[derive(Debug)]
@@ -131,8 +139,12 @@ impl RegexLexer {
             None => RegexToken::Eof,
             Some(c) => match c {
                 '|' => RegexToken::Pipe,
-                '(' => RegexToken::LBracket,
-                ')' => RegexToken::RBracket,
+                '(' => RegexToken::LParen,
+                ')' => RegexToken::RParen,
+                '[' => RegexToken::LBracket,
+                ']' => RegexToken::RBracket,
+                '^' => RegexToken::StartAnchor,
+                '$' => RegexToken::EndAnchor,
                 '*' => RegexToken::Quantifier { min: 0, max: None },
                 '+' => RegexToken::Quantifier { min: 1, max: None },
                 '?' => RegexToken::Quantifier {
@@ -175,11 +187,13 @@ mod tests {
 
     #[rstest]
     #[case("ab?", vec![RegexToken::Literal('a'), RegexToken::Literal('b'), RegexToken::Quantifier { min: 0, max: Some(1) }])]
-    #[case("(a|bc){1,3}\\12", vec![RegexToken::LBracket,RegexToken::Literal('a'), RegexToken::Pipe, RegexToken::Literal('b'), RegexToken::Literal('c'), RegexToken::RBracket, RegexToken::Quantifier { min: 1, max: Some(3) }, RegexToken::BackRef(12)])]
+    #[case("(a|bc){1,3}\\12", vec![RegexToken::LParen,RegexToken::Literal('a'), RegexToken::Pipe, RegexToken::Literal('b'), RegexToken::Literal('c'), RegexToken::RParen, RegexToken::Quantifier { min: 1, max: Some(3) }, RegexToken::BackRef(12)])]
     #[case("a*\\d+", vec![RegexToken::Literal('a'), RegexToken::Quantifier { min: 0, max: None }, RegexToken::Digit, RegexToken::Quantifier{min:1, max:None}])]
     #[case("a*\\wb", vec![RegexToken::Literal('a'), RegexToken::Quantifier { min: 0, max: None }, RegexToken::AlphaNum, RegexToken::Literal('b')])]
     #[case("a{1}b", vec![RegexToken::Literal('a'), RegexToken::Quantifier { min: 1, max: Some(1) }, RegexToken::Literal('b')])]
     #[case("a{1,}b", vec![RegexToken::Literal('a'), RegexToken::Quantifier { min: 1, max: None }, RegexToken::Literal('b')])]
+    #[case("a[bwz]b", vec![RegexToken::Literal('a'), RegexToken::LBracket , RegexToken::Literal('b'), RegexToken::Literal('w'), RegexToken::Literal('z'), RegexToken::RBracket, RegexToken::Literal('b')])]
+    #[case("^ab$", vec![RegexToken::StartAnchor,RegexToken::Literal('a'),  RegexToken::Literal('b'), RegexToken::EndAnchor])]
     fn test_lexer(#[case] pat: &str, #[case] expected: Vec<RegexToken>) -> anyhow::Result<()> {
         let mut lexer = RegexLexer::new(pat);
 
