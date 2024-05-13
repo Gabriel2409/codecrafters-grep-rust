@@ -1,6 +1,6 @@
 use std::io::{BufRead, BufReader, Cursor, Read, Seek, SeekFrom};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum RegexToken {
     /// Literal char in pattern
     Literal(char),
