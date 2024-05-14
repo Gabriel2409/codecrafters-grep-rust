@@ -1,12 +1,20 @@
 use crate::regex_parser::Node;
 use std::collections::HashSet;
 
+/// Struct that tries to match an input string to a pattern.
+/// To do so, go through the whole AST (starting from root node),
+/// and check if the node currently under examination matches one of the position in th
+/// char vector. Note that quantifiers and Or can generate multiple potential paths,
+/// which is why other matchers are spawned
+/// Note to self: This is completely overkill
 #[derive(Debug, Clone)]
 pub struct Matcher {
     positions: HashSet<usize>,
 }
 
 impl Matcher {
+    /// When creating a new matcher, we try to match starting all the positions in the
+    /// char vec
     pub fn new(len_char: usize) -> Self {
         let mut positions = HashSet::new();
         for pos in 0..len_char {
@@ -22,10 +30,6 @@ impl Matcher {
             .filter(|&x| x < chars.len())
             .collect();
         match node_to_match {
-            Node::End { node } => {
-                self.matches(node, chars) && self.positions.contains(&(chars.len() - 1))
-            }
-
             Node::StartAnchor => {
                 if self.positions.contains(&0) {
                     self.positions.clear();
@@ -34,6 +38,9 @@ impl Matcher {
                 } else {
                     false
                 }
+            }
+            Node::EndAnchor => {
+                todo!()
             }
             Node::Wildcard => {
                 let mut new_positions = HashSet::new();
@@ -200,7 +207,7 @@ mod tests {
     #[case("^(aa|bb)(ef)", " bbefg", false)]
     #[case("^aa", "baa", false)]
     // #[case("aa$", "aaaaab", false)]
-    // #[case("aa$", "baaa", true)]
+    // #[case("aa$", "b(aa)a", true)]
     fn test_matcher(
         #[case] pat: &str,
         #[case] input: &str,

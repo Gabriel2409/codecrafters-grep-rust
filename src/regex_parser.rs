@@ -10,7 +10,10 @@ pub enum Node {
         nodes: Vec<Node>,
     },
     Literal(char),
+    // I am actually conflicted about having Start and EndAnchors as nodes
+    // Maybe wrap the node instead?
     StartAnchor,
+    EndAnchor,
     Digit,
     Alphanum,
     Wildcard,
@@ -22,9 +25,6 @@ pub enum Node {
         node: Box<Node>,
         min: usize,
         max: Option<usize>,
-    },
-    End {
-        node: Box<Node>,
     },
 }
 
@@ -109,10 +109,7 @@ impl RegexParser {
                     nodes.push(Node::StartAnchor);
                 }
                 RegexToken::EndAnchor => {
-                    let last_node = nodes.pop().unwrap();
-                    nodes.push(Node::End {
-                        node: Box::new(last_node),
-                    });
+                    nodes.push(Node::EndAnchor);
                 }
                 RegexToken::Quantifier { min, max } => {
                     let prev_node = nodes
