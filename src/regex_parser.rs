@@ -1,6 +1,6 @@
 use crate::regex_lexer::{RegexLexer, RegexToken};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 /// Node from the AST created by the parser
 pub enum Node {
     Or {
@@ -159,5 +159,49 @@ impl RegexParser {
 
             self.next_token()?;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use crate::{regex_lexer::RegexLexer, regex_parser::RegexParser};
+
+    use super::*;
+
+    #[rstest]
+    #[case("ab", Node::Group { nodes: vec![
+        Node::Literal('a'), Node::Literal('b')
+    ], group_ref: 0 })]
+    #[case("a(b(cde))", 
+    Node::Group { nodes: vec![Node::Literal('a'), 
+            Node::Group { nodes: vec![Node::Literal('b'), 
+                Node::Group { nodes: vec![Node::Literal('c'), Node::Literal('d'), Node::Literal('e')], group_ref: 2 }], 
+                group_ref: 1 }], 
+            group_ref: 0 }) ]
+    #[case("a|b|cd", 
+Node::Group { nodes: vec![Node::Or { nodes: vec![
+            Node::Group { nodes: vec![Node::Literal('a')], group_ref: 0 }, 
+            Node::Group { nodes: vec![Node::Or { nodes: vec![
+                Node::Group { nodes: vec![Node::Literal('b')], group_ref: 0 }, 
+                Node::Group { nodes: vec![Node::Literal('c'), Node::Literal('d')], group_ref: 0 }] }], 
+                group_ref: 0 }] }], 
+            group_ref: 0 }
+    )]
+    #[case("[^abc]", Node::Group{nodes: vec![Node::Not { nodes: vec![
+        Node::Literal('a'), Node::Literal('b'), Node::Literal('c')] 
+    }], group_ref:0})]
+    fn test_parser(#[case] pat: &str, #[case] expected: Node) -> anyhow::Result<()> {
+        let pat = pat.to_string();
+
+        let lexer = RegexLexer::new(&pat);
+        let mut parser = RegexParser::new(lexer)?;
+
+        let node = parser.build_ast(0)?;
+        dbg!(&node);
+        assert_eq!(node, expected);
+
+        Ok(())
     }
 }
