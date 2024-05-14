@@ -1,5 +1,3 @@
-use std::io::{BufRead, BufReader, Cursor, Read, Seek, SeekFrom};
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum RegexToken {
     /// Literal char in pattern
@@ -35,6 +33,7 @@ pub enum RegexToken {
     Wildcard,
 }
 
+/// Overengineered struct to transform the pattern into a set of tokens
 #[derive(Debug)]
 pub struct RegexLexer {
     /// pattern string as a vec of chars
@@ -124,12 +123,14 @@ impl RegexLexer {
                     self.read_char();
 
                     if self.ch.unwrap() != '}' {
-                        panic!("C");
+                        println!("Problem parsing braces");
+                        std::process::exit(1);
                     }
                 }
             }
             _ => {
-                panic!("D");
+                println!("Problem parsing braces");
+                std::process::exit(1);
             }
         }
 
@@ -170,7 +171,12 @@ impl RegexLexer {
                         let num = self.read_number()?;
                         RegexToken::BackRef(num)
                     }
-
+                    // Not exactly correct but let's consider we need to escape punctuation
+                    Some(x) if x.is_ascii_punctuation() => {
+                        let tok = RegexToken::Literal(x);
+                        self.read_char();
+                        tok
+                    }
                     _ => {
                         println!("Error parsing expression");
                         std::process::exit(1);
@@ -200,6 +206,7 @@ mod tests {
     #[case("a{1,}b", vec![RegexToken::Literal('a'), RegexToken::Quantifier { min: 1, max: None }, RegexToken::Literal('b')])]
     #[case("a[bwz]b", vec![RegexToken::Literal('a'), RegexToken::LBracket , RegexToken::Literal('b'), RegexToken::Literal('w'), RegexToken::Literal('z'), RegexToken::RBracket, RegexToken::Literal('b')])]
     #[case("^a.b$", vec![RegexToken::StartAnchor,RegexToken::Literal('a'), RegexToken::Wildcard, RegexToken::Literal('b'), RegexToken::EndAnchor])]
+    #[case(r#"a\{"#, vec![RegexToken::Literal('a'), RegexToken::Literal('{')])]
     fn test_lexer(#[case] pat: &str, #[case] expected: Vec<RegexToken>) -> anyhow::Result<()> {
         let mut lexer = RegexLexer::new(pat);
 
