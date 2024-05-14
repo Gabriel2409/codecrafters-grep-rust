@@ -7,6 +7,7 @@ use std::collections::HashSet;
 /// char vector. Note that quantifiers and Or can generate multiple potential paths,
 /// which is why other matchers are spawned
 /// Note to self: This is completely overkill
+/// + the way I wrote it make it very difficult to handle backreferences with Or and quantifiers
 #[derive(Debug, Clone)]
 pub struct Matcher {
     positions: HashSet<usize>,
