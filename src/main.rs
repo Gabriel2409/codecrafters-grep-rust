@@ -48,7 +48,7 @@ fn main() -> anyhow::Result<()> {
     let mut parser = RegexParser::new(lexer)?;
 
     let node = parser.build_ast(0)?;
-    let mut matcher = Matcher::new();
+    let mut matcher = Matcher::new(chars.len());
     let is_match = matcher.matches(&node, &chars);
 
     if is_match {

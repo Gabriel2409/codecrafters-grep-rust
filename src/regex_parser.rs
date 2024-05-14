@@ -32,9 +32,11 @@ pub struct Matcher {
 }
 
 impl Matcher {
-    pub fn new() -> Self {
+    pub fn new(len_char: usize) -> Self {
         let mut positions = HashSet::new();
-        positions.insert(0);
+        for pos in 0..len_char {
+            positions.insert(pos);
+        }
         Matcher { positions }
     }
     pub fn matches(&mut self, node_to_match: &Node, chars: &[char]) -> bool {
@@ -332,7 +334,7 @@ mod tests {
 
         let node = parser.build_ast(0)?;
         dbg!(&node);
-        let mut matcher = Matcher::new();
+        let mut matcher = Matcher::new(chars.len());
         let is_match = matcher.matches(&node, &chars);
         assert_eq!(is_match, expected);
 
