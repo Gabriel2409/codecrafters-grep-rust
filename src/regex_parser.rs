@@ -8,7 +8,7 @@ pub enum Node {
         nodes: Vec<Node>,
     },
     Not {
-        node: Box<Node>,
+        nodes: Vec<Node>,
     },
     Range(char, char),
     Literal(char),
@@ -81,6 +81,31 @@ impl Matcher {
                 for pos in self.positions.iter() {
                     let c = chars[*pos];
                     let is_matching = c.is_ascii_alphanumeric() || c == '_';
+                    if is_matching {
+                        new_positions.insert(*pos + 1);
+                        at_least_one_match = true;
+                    }
+                }
+                self.positions = new_positions;
+                at_least_one_match
+            }
+            // should only contain literal nodes
+            Node::Not { nodes } => {
+                let mut chars_not_to_match = HashSet::new();
+                for node in nodes {
+                    match node {
+                        Node::Literal(x) => {
+                            chars_not_to_match.insert(*x);
+                        }
+                        _ => todo!(),
+                    }
+                }
+
+                let mut at_least_one_match = false;
+
+                let mut new_positions = HashSet::new();
+                for pos in self.positions.iter() {
+                    let is_matching = !chars_not_to_match.contains(&chars[*pos]);
                     if is_matching {
                         new_positions.insert(*pos + 1);
                         at_least_one_match = true;
@@ -201,12 +226,11 @@ impl RegexParser {
                     nodes.push(Node::Literal(x));
                 }
                 RegexToken::RBracket => {
-                    let mut final_node = Node::Or { nodes };
-                    if negated {
-                        final_node = Node::Not {
-                            node: Box::new(final_node),
-                        }
-                    }
+                    let final_node = if negated {
+                        Node::Not { nodes }
+                    } else {
+                        Node::Or { nodes }
+                    };
 
                     return Ok(final_node);
                 }
@@ -293,6 +317,8 @@ mod tests {
     #[case("(b|bc|de|fg)d45", "ded45h_", true)]
     #[case("ba?c+d{2,3}f*g", "bccdddffffffffg", true)]
     #[case("ba?c+d{2,3}f*g", "bccdffffffffg", false)]
+    #[case("Ap[^pb]le", "Apple is good", false)]
+    #[case("Ap[^ab]le", "Apple is good", true)]
     fn test_parser(
         #[case] pat: &str,
         #[case] input: &str,
