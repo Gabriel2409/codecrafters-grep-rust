@@ -12,6 +12,7 @@ pub enum Node {
     },
     Range(char, char),
     Literal(char),
+    StartAnchor,
     Digit,
     Alphanum,
     Wildcard,
@@ -23,6 +24,9 @@ pub enum Node {
         node: Box<Node>,
         min: usize,
         max: Option<usize>,
+    },
+    End {
+        node: Box<Node>,
     },
 }
 
@@ -47,6 +51,19 @@ impl Matcher {
             .filter(|&x| x < chars.len())
             .collect();
         match node_to_match {
+            Node::End { node } => {
+                self.matches(node, chars) && self.positions.contains(&(chars.len() - 1))
+            }
+
+            Node::StartAnchor => {
+                if self.positions.contains(&0) {
+                    self.positions.clear();
+                    self.positions.insert(0);
+                    true
+                } else {
+                    false
+                }
+            }
             Node::Wildcard => {
                 let mut new_positions = HashSet::new();
                 for pos in self.positions.iter() {
@@ -268,6 +285,15 @@ impl RegexParser {
                 RegexToken::Wildcard => {
                     nodes.push(Node::Wildcard);
                 }
+                RegexToken::StartAnchor => {
+                    nodes.push(Node::StartAnchor);
+                }
+                RegexToken::EndAnchor => {
+                    let last_node = nodes.pop().unwrap();
+                    nodes.push(Node::End {
+                        node: Box::new(last_node),
+                    });
+                }
                 RegexToken::Quantifier { min, max } => {
                     let prev_node = nodes
                         .pop()
@@ -330,6 +356,12 @@ mod tests {
     #[case("Ap[^pb]le", "Apple is good", false)]
     #[case("Ap[^ab]le", "Apple is good", true)]
     #[case("a.*b", "assgshgsoghsfohgsfoghsfghsgbe", true)]
+    #[case("^aa(wz)?43", "aawz43xuy", true)]
+    #[case("^(aa|bb)(ef)", "bbefg", true)]
+    #[case("^(aa|bb)(ef)", " bbefg", false)]
+    #[case("^aa", "baa", false)]
+    #[case("aa$", "aaaaab", false)]
+    #[case("aa$", "baaa", true)]
     fn test_parser(
         #[case] pat: &str,
         #[case] input: &str,
