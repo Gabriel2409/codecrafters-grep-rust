@@ -1,10 +1,13 @@
+mod regex_lexer;
+mod regex_matcher;
+mod regex_parser;
+
 use clap::Parser;
 use clap_stdin::FileOrStdin;
 use regex_lexer::RegexLexer;
 
-use crate::regex_parser::{Matcher, RegexParser};
-mod regex_lexer;
-mod regex_parser;
+use crate::regex_matcher::Matcher;
+use crate::regex_parser::RegexParser;
 
 #[derive(Parser)]
 #[command(
