@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::regex_lexer::{RegexLexer, RegexToken};
 
 #[derive(Debug)]
@@ -24,38 +26,79 @@ enum Node {
     },
 }
 
+#[derive(Debug, Clone)]
 struct Matcher {
-    pos: usize,
+    positions: HashSet<usize>,
 }
 
 impl Matcher {
     pub fn new() -> Self {
-        Matcher { pos: 0 }
+        let mut positions = HashSet::new();
+        positions.insert(0);
+        Matcher { positions }
     }
     pub fn matches(&mut self, node_to_match: &Node, chars: &[char]) -> bool {
         match node_to_match {
             Node::Literal(c) => {
-                let is_matching = *c == chars[self.pos];
-                self.pos += 1;
-                is_matching
+                let mut at_least_one_match = false;
+
+                let mut new_positions = HashSet::new();
+                for pos in self.positions.iter() {
+                    let is_matching = *c == chars[*pos];
+                    if is_matching {
+                        new_positions.insert(*pos + 1);
+                        at_least_one_match = true;
+                    }
+                }
+                self.positions = new_positions;
+                at_least_one_match
             }
             Node::Digit => {
-                let c = chars[self.pos];
-                self.pos += 1;
-                c.is_ascii_digit()
+                let mut at_least_one_match = false;
+
+                let mut new_positions = HashSet::new();
+                for pos in self.positions.iter() {
+                    let c = chars[*pos];
+                    let is_matching = c.is_ascii_digit();
+                    if is_matching {
+                        new_positions.insert(*pos + 1);
+                        at_least_one_match = true;
+                    }
+                }
+                self.positions = new_positions;
+                at_least_one_match
             }
             Node::Alphanum => {
-                let c = chars[self.pos];
-                self.pos += 1;
-                c.is_ascii_alphanumeric() || c == '_'
+                let mut at_least_one_match = false;
+
+                let mut new_positions = HashSet::new();
+                for pos in self.positions.iter() {
+                    let c = chars[*pos];
+                    let is_matching = c.is_ascii_alphanumeric() || c == '_';
+                    if is_matching {
+                        new_positions.insert(*pos + 1);
+                        at_least_one_match = true;
+                    }
+                }
+                self.positions = new_positions;
+                at_least_one_match
             }
-            // Node::Or { nodes } =>{
-            //     let mut matchers = Vec::new();
-            //     for node in nodes{
-            //
-            //
-            //     }
-            // }
+            Node::Or { nodes } => {
+                let matcher_clone = self.clone();
+                let mut positions = HashSet::new();
+                let mut at_least_one_match = false;
+                for node in nodes {
+                    let mut matcher = matcher_clone.clone();
+                    if matcher.matches(node, chars) {
+                        at_least_one_match = true;
+                        for pos in matcher.positions {
+                            positions.insert(pos);
+                        }
+                    }
+                }
+                self.positions = positions;
+                at_least_one_match
+            }
             Node::Group { nodes, group_ref } => {
                 let mut is_matching = true;
                 for (i, node) in nodes.iter().enumerate() {
@@ -205,16 +248,17 @@ mod tests {
 
     #[test]
     fn test_parser() -> anyhow::Result<()> {
-        // let pat = String::from("(a(b))\\de\\wf");
-        // let chars = "ab5e_f".chars().collect::<Vec<_>>();
+        let pat = String::from("(a(b))\\de\\wf");
+        let chars = "ab5e_f".chars().collect::<Vec<_>>();
 
-        let pat = String::from("ab|cd");
-        let chars = "cd".chars().collect::<Vec<_>>();
+        // let pat = String::from("(b|bc|de|fg)d45");
+        // let chars = "fgd45".chars().collect::<Vec<_>>();
 
         let mut lexer = RegexLexer::new(&pat);
         let mut parser = RegexParser::new(lexer)?;
 
         let node = parser.build_ast(0)?;
+        dbg!(&node);
         let mut matcher = Matcher::new();
         let b = matcher.matches(&node, &chars);
         assert!(b);
