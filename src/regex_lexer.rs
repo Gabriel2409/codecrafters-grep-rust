@@ -10,8 +10,8 @@ pub enum RegexToken {
     AlphaNum,
     /// Quantifier, ?, * or {x} or {x,y} or {x,}
     Quantifier {
-        min: u8,
-        max: Option<u8>, // None for infinity
+        min: usize,
+        max: Option<usize>, // None for infinity
     },
     /// (
     LParen,
@@ -26,7 +26,7 @@ pub enum RegexToken {
     /// End of input
     Eof,
     /// \15
-    BackRef(u8),
+    BackRef(usize),
     /// ^
     StartAnchor,
     /// $
@@ -83,7 +83,7 @@ impl RegexLexer {
         }
     }
 
-    pub fn read_number(&mut self) -> anyhow::Result<u8> {
+    pub fn read_number(&mut self) -> anyhow::Result<usize> {
         let mut s = String::new();
 
         while let Some(c) = self.ch {
@@ -102,7 +102,7 @@ impl RegexLexer {
             }
         }
 
-        Ok(s.parse::<u8>()?)
+        Ok(s.parse::<usize>()?)
     }
 
     pub fn read_brace_quantifier(&mut self) -> anyhow::Result<RegexToken> {

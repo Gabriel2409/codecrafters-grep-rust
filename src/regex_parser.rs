@@ -17,12 +17,12 @@ enum Node {
     Wildcard,
     Group {
         nodes: Vec<Node>,
-        group_ref: u8,
+        group_ref: usize,
     },
     Quantifier {
         node: Box<Node>,
-        min: u8,
-        max: Option<u8>,
+        min: usize,
+        max: Option<usize>,
     },
 }
 
@@ -38,6 +38,12 @@ impl Matcher {
         Matcher { positions }
     }
     pub fn matches(&mut self, node_to_match: &Node, chars: &[char]) -> bool {
+        self.positions = self
+            .positions
+            .clone()
+            .into_iter()
+            .filter(|&x| x < chars.len())
+            .collect();
         match node_to_match {
             Node::Literal(c) => {
                 let mut at_least_one_match = false;
@@ -99,6 +105,42 @@ impl Matcher {
                 self.positions = positions;
                 at_least_one_match
             }
+            Node::Quantifier { node, min, max } => {
+                let mut positions = HashSet::new();
+                let mut at_least_one_match = false;
+                let mut min = *min;
+                if min == 0 {
+                    positions.extend(self.positions.clone());
+                    at_least_one_match = true;
+                    min = 1;
+                }
+
+                let max = match max {
+                    Some(max) => *max,
+                    None => {
+                        let min_pos = *self.positions.iter().min().unwrap_or(&0);
+                        chars.len() - min_pos + 1
+                    }
+                };
+
+                let mut nb_match = 0;
+                let mut matcher = self.clone();
+                while nb_match < max {
+                    let is_matching = matcher.matches(node, chars);
+                    if is_matching {
+                        nb_match += 1;
+                        if nb_match >= min {
+                            at_least_one_match = true;
+                            positions.extend(matcher.positions.clone());
+                        }
+                    } else {
+                        break;
+                    }
+                }
+
+                self.positions = positions;
+                at_least_one_match
+            }
             Node::Group { nodes, group_ref } => {
                 let mut is_matching = true;
                 for (i, node) in nodes.iter().enumerate() {
@@ -118,7 +160,7 @@ struct RegexParser {
     l: RegexLexer,
     cur_token: RegexToken,
     peek_token: RegexToken,
-    group_ref: u8,
+    group_ref: usize,
 }
 
 impl RegexParser {
@@ -175,7 +217,7 @@ impl RegexParser {
         }
     }
 
-    pub fn build_ast(&mut self, group_ref: u8) -> anyhow::Result<Node> {
+    pub fn build_ast(&mut self, group_ref: usize) -> anyhow::Result<Node> {
         let mut nodes = Vec::new();
 
         loop {
@@ -246,22 +288,27 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_parser() -> anyhow::Result<()> {
-        let pat = String::from("(a(b))\\de\\wf");
-        let chars = "ab5e_f".chars().collect::<Vec<_>>();
+    #[rstest]
+    #[case("(a(b))\\de\\wf", "ab5e_f", true)]
+    #[case("(b|bc|de|fg)d45", "ded45h_", true)]
+    #[case("ba?c+d{2,3}f*g", "bccdddffffffffg", true)]
+    #[case("ba?c+d{2,3}f*g", "bccdffffffffg", false)]
+    fn test_parser(
+        #[case] pat: &str,
+        #[case] input: &str,
+        #[case] expected: bool,
+    ) -> anyhow::Result<()> {
+        let pat = pat.to_string();
+        let chars = input.chars().collect::<Vec<_>>();
 
-        // let pat = String::from("(b|bc|de|fg)d45");
-        // let chars = "fgd45".chars().collect::<Vec<_>>();
-
-        let mut lexer = RegexLexer::new(&pat);
+        let lexer = RegexLexer::new(&pat);
         let mut parser = RegexParser::new(lexer)?;
 
         let node = parser.build_ast(0)?;
         dbg!(&node);
         let mut matcher = Matcher::new();
-        let b = matcher.matches(&node, &chars);
-        assert!(b);
+        let is_match = matcher.matches(&node, &chars);
+        assert_eq!(is_match, expected);
 
         Ok(())
     }
