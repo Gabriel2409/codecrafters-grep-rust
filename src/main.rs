@@ -1,6 +1,8 @@
 use clap::Parser;
 use clap_stdin::FileOrStdin;
 use regex_lexer::RegexLexer;
+
+use crate::regex_parser::{Matcher, RegexParser};
 mod regex_lexer;
 mod regex_parser;
 
@@ -27,34 +29,6 @@ struct Cli {
     file: FileOrStdin<String>,
 }
 
-fn match_pattern(input_line: &str, pattern: &str) -> bool {
-    match pattern {
-        x if x.chars().count() == 1 => input_line.contains(pattern),
-        "\\d" => {
-            let mut is_matched = false;
-            for char in input_line.chars() {
-                if char.is_ascii_digit() {
-                    is_matched = true;
-                    break;
-                }
-            }
-            is_matched
-        }
-        "\\w" => {
-            let mut is_matched = false;
-            for char in input_line.chars() {
-                if char == '_' || char.is_ascii_alphanumeric() {
-                    is_matched = true;
-                    break;
-                }
-            }
-            is_matched
-        }
-
-        _ => todo!("Unhandled pattern: {}", pattern),
-    }
-}
-
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
@@ -67,9 +41,17 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(1);
     }
 
-    let pattern = cli.pattern;
+    let pat = cli.pattern;
+    let chars = content.chars().collect::<Vec<_>>();
 
-    if match_pattern(&content, &pattern) {
+    let lexer = RegexLexer::new(&pat);
+    let mut parser = RegexParser::new(lexer)?;
+
+    let node = parser.build_ast(0)?;
+    let mut matcher = Matcher::new();
+    let is_match = matcher.matches(&node, &chars);
+
+    if is_match {
         Ok(())
     } else {
         anyhow::bail!("Error matching pattern")

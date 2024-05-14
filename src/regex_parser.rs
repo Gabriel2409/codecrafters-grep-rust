@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::regex_lexer::{RegexLexer, RegexToken};
 
 #[derive(Debug)]
-enum Node {
+pub enum Node {
     Or {
         nodes: Vec<Node>,
     },
@@ -27,7 +27,7 @@ enum Node {
 }
 
 #[derive(Debug, Clone)]
-struct Matcher {
+pub struct Matcher {
     positions: HashSet<usize>,
 }
 
@@ -156,7 +156,7 @@ impl Matcher {
     }
 }
 
-struct RegexParser {
+pub struct RegexParser {
     l: RegexLexer,
     cur_token: RegexToken,
     peek_token: RegexToken,
