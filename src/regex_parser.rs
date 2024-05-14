@@ -47,6 +47,14 @@ impl Matcher {
             .filter(|&x| x < chars.len())
             .collect();
         match node_to_match {
+            Node::Wildcard => {
+                let mut new_positions = HashSet::new();
+                for pos in self.positions.iter() {
+                    new_positions.insert(*pos + 1);
+                }
+                self.positions = new_positions;
+                true
+            }
             Node::Literal(c) => {
                 let mut at_least_one_match = false;
 
@@ -315,12 +323,13 @@ mod tests {
     use super::*;
 
     #[rstest]
-    #[case("(a(b))\\de\\wf", "ab5e_f", true)]
+    #[case("(a(b))\\de\\w.f", "ab5e_%f", true)]
     #[case("(b|bc|de|fg)d45", "ded45h_", true)]
     #[case("ba?c+d{2,3}f*g", "bccdddffffffffg", true)]
     #[case("ba?c+d{2,3}f*g", "bccdffffffffg", false)]
     #[case("Ap[^pb]le", "Apple is good", false)]
     #[case("Ap[^ab]le", "Apple is good", true)]
+    #[case("a.*b", "assgshgsoghsfohgsfoghsfghsgbe", true)]
     fn test_parser(
         #[case] pat: &str,
         #[case] input: &str,
