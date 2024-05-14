@@ -171,7 +171,10 @@ impl RegexLexer {
                         RegexToken::BackRef(num)
                     }
 
-                    _ => todo!(),
+                    _ => {
+                        println!("Error parsing expression");
+                        std::process::exit(1);
+                    }
                 },
                 '{' => self.read_brace_quantifier()?,
                 x => RegexToken::Literal(x),
